@@ -1,7 +1,6 @@
 import random
 import numpy as np
 import geopy
-import rvo2
 
 
 def rvoAlgorithm(data):

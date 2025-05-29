@@ -15,7 +15,7 @@ def minimize_utilization(data, model, y):
 
 
 def criticality_heuristic(data, log, S_active, y_j, c_fj, x_jr):
-    log("Starting solving problem...")
+    # log("Starting solving problem...")
     temp_req_index=0
     index_distribution = np.zeros(len(data.nodes))
     for j in range(len(data.node_cores_matrix)):
@@ -131,3 +131,4 @@ def criticality_heuristic(data, log, S_active, y_j, c_fj, x_jr):
             c_fj[f][rand_node]=1
             S_active[f][rand_node]=1
             y_j[rand_node]=1
+

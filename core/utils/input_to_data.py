@@ -4,11 +4,12 @@ import pandas as pd
 from sqlalchemy import create_engine
 import networkx as nx
 import numpy as np
-from dag import DAG
-from function import Function
+
+from simulation_resource_allocation.applications import Application
+from simulation_resource_allocation.applications.function import Function
+from simulation_resource_allocation.dag import DAG
 from .data import Data
 
-from .. import Application
 
 np.set_printoptions(formatter={'float': lambda x: "{0:0.3f}".format(x)})
 
@@ -40,7 +41,7 @@ solvers = ["NeptuneMinDelayAndUtilization", "NeptuneMinDelay", "NeptuneMinUtiliz
 
 # todo DONE
 def check_input(schedule_input):
-    # print(f"Checking scheduling input...")
+    # print(f"Checking scheduling inp...")
     #
     # print(f"Checking that it contains all the required keys")
     for key in keys:
@@ -86,16 +87,20 @@ def check_input(schedule_input):
 
 
 # todo DONE
-def data_to_solver_input(input, cpu_coeff=1.3, with_db=True):
-    aux_data = Data()
-    setup_community_data(aux_data, input)
-    setup_runtime_data(aux_data, input)
+def data_to_solver_input(input, cpu_coeff=1.3, data_temp=None, with_db=True):
+    if data_temp is not None:
+        aux_data = data_temp
+    else:
+        aux_data = Data()
+        setup_community_data(aux_data, input)
+        setup_runtime_data(aux_data, input)
+        aux_data.cluster=None
     create_mappings(aux_data)
     # if with_db:
     # update_data_from_db(aux_data)
     update_old_allocations(aux_data)
-    data = Data(aux_data.nodes, aux_data.nodes, aux_data.functions, aux_data.dag, aux_data.m, aux_data.dag, aux_data.m,
-                aux_data.function_cold_starts)
+    data = Data(sources=aux_data.nodes, nodes=aux_data.nodes, cluster=aux_data.cluster, functions=aux_data.functions,
+                dag=aux_data.dag, m=aux_data.m, function_cold_starts=aux_data.function_cold_starts)
     data.node_memory_matrix = np.array(aux_data.node_memories)
     data.function_memory_matrix = np.array(aux_data.function_memories)
     data.node_delay_matrix = np.array(aux_data.node_delay_matrix)
@@ -120,21 +125,30 @@ def setup_community_data(data, input):
     data.gpu_functions = input.get('gpu_function_names', [])
     data.gpu_functions_set = set(data.gpu_functions)
     data.gpu_functions_mask = np.array([f in data.gpu_functions_set for f in data.functions])
-    data.servers = input.get('node_names', [])
+    # data.cluer.servers = inp.get('node_names', [])
+    data.server_names = [] if len(data.cluster.servers) == 0 else [s.name for s in data.cluster.servers]
+    data.nodes = data.server_names
+    data.sources = data.server_names
+    # print(f'||||||||| Functions={data.cluster.functions}')
     data.gpu_nodes = input.get('gpu_node_names', [])
     data.gpu_nodes_set = set(data.gpu_nodes)
-    data.gpu_nodes_mask = np.array([n in data.gpu_nodes_set for n in data.servers])
+    data.gpu_nodes_mask = np.array([n in data.gpu_nodes_set for n in data.server_names])
 
     assert set(data.gpu_functions).issubset(set(data.functions))
-    assert set(data.gpu_nodes).issubset(set(data.servers))
+    assert set(data.gpu_nodes).issubset(set(data.server_names))
 
     data.function_memories = input.get('function_memories')
     data.function_cold_starts = input.get('function_cold_starts')
-    data.node_memories = input.get('node_memories')
+    node_memories = [s.memory for s in data.cluster.servers]
+    # data.node_memories = inp.get('node_memories')
+    data.node_memories= node_memories
     data.gpu_node_memories = input.get('gpu_node_memories')
+    input["actual_cpu_allocations"]= data.cluster.cpu_allocation
     data.actual_cpu_allocations = input.get('actual_cpu_allocations')
     data.actual_gpu_allocations = input.get('actual_gpu_allocations')
-    data.node_cores = input.get('node_cores')
+    node_cores = [s.cores_available for s in data.cluster.servers]
+    # data.node_cores = inp.get('node_cores')
+    data.node_cores = node_cores
     data.gpu_function_memories = input.get('gpu_function_memories')
     data.max_delay_matrix = [1000 for _ in range(len(data.function_memories))]
 
@@ -142,12 +156,12 @@ def setup_community_data(data, input):
 # todo DONE
 def setup_runtime_data(data, input):
     # TODO include all attributes in cluster_nodes and edges to enable our PI
-    # New - for dependency ( extract data from input and create a DAG)
+    # New - for dependency ( extract data from inp and create a DAG)
     # ----------------------------------------------------------------
     edges = [(edge["source"], edge["target"]) for edge in input.get('edges')]
     dg = nx.DiGraph(edges)
     # print("EDGES:", edges)
-    # print("NODES:", input.get('cluster_nodes', [])[0].get("name"))
+    # print("NODES:", inp.get('cluster_nodes', [])[0].get("name"))
     dag_model = DAG(dg, input.get('nodes', [])[0].get("name"))
 
     dg_dep = dag_model.dag
@@ -167,7 +181,7 @@ def setup_runtime_data(data, input):
 
 
     data.dag = dag_model
-    # print("DAG+++", data.dag)
+    # print("DAG+++", data.dag_model)
 
     data.m = input.get('m', [[]])
     data.nrt = input.get('nrt', [])
@@ -177,42 +191,44 @@ def setup_runtime_data(data, input):
 
     # ----------------------------------------------------------------
 
-    node_delay_matrix = input.get('node_delay_matrix', None)
-    if node_delay_matrix:
+    # node_delay_matrix = inp.get('node_delay_matrix', None)
+    node_delay_matrix = data.cluster.network_delays
+    if len(node_delay_matrix) > 0:
         data.node_delay_matrix = node_delay_matrix
     else:
-        data.node_delay_matrix = [[1 if s != d else 0 for s in data.servers] for d in data.servers]
-    data.gpu_node_delay_matrix = [[1 if s != d else 0 for s in data.servers] for d in data.gpu_nodes]
+        data.node_delay_matrix = [[1 if s != d else 0 for s in data.nodes] for d in data.nodes]
+    data.gpu_node_delay_matrix = [[1 if s != d else 0 for s in data.nodes] for d in data.gpu_nodes]
     workload_on_source_matrix = json.loads(input.get('workload_on_source_matrix', None))
     if workload_on_source_matrix:
         data.workload_on_source_matrix = np.array(workload_on_source_matrix)
     else:
-        data.workload_on_source_matrix = np.array([[0 for _ in data.servers] for _ in data.functions])
+        data.workload_on_source_matrix = np.array([[0 for _ in data.nodes] for _ in data.functions])
     workload_on_destination_matrix = input.get('workload_on_destination_matrix', None)
     if workload_on_destination_matrix:
         data.workload_on_destination_matrix = np.array(workload_on_destination_matrix)
     else:
-        data.workload_on_destination_matrix = np.array([[0 for _ in data.servers] for _ in data.functions])
+        data.workload_on_destination_matrix = np.array([[0 for _ in data.nodes] for _ in data.functions])
 
     data.gpu_workload_on_destination_matrix = np.array([[0 for _ in data.gpu_nodes] for _ in data.gpu_functions])
 
-    cores_matrix = input.get('cores_matrix', None)
-    if cores_matrix:
+    # cores_matrix = inp.get('cores_matrix', None)
+    cores_matrix = [s.cores_available for s in data.cluster.servers]
+    if len(cores_matrix) > 0:
         data.cores_matrix = cores_matrix
     else:
-        data.cores_matrix = np.array([[0 for _ in data.servers] for _ in data.functions])
-    data.response_time_matrix = [[0 for _ in data.servers] for _ in data.functions]
+        data.cores_matrix = np.array([[0 for _ in data.nodes] for _ in data.functions])
+    data.response_time_matrix = [[0 for _ in data.nodes] for _ in data.functions]
     data.gpu_response_time_matrix = [[1 for _ in data.gpu_nodes] for _ in data.gpu_functions]
-    data.old_cpu_allocations = np.array([[0 for _ in data.servers] for _ in data.functions])
+    data.old_cpu_allocations = np.array([[0 for _ in data.nodes] for _ in data.functions])
     data.old_gpu_allocations = np.array([[0 for _ in data.gpu_nodes] for _ in data.gpu_functions])
     # CORE ALLOCATION HERE
-    data.core_per_req_matrix = np.array([[5 for _ in data.servers] for _ in data.functions])
-    data.cores_cluster = np.array([[5 for _ in data.cluster.servers] for _ in data.functions]) # NOTE New, for dynamic clustering
+    data.core_per_req_matrix = np.array([[50 for _ in data.nodes] for _ in data.functions])
+    data.cores_cluster = np.array([[50 for _ in data.nodes] for _ in data.functions]) # NOTE New, for dynamic clustering
     # print(f'data.core_per_req_matrix={data.core_per_req_matrix}')
 
 
 def setup_budget_data(data):
-    data.node_costs = np.array([5 for _ in data.servers])
+    data.node_costs = np.array([5 for _ in data.nodes])
     data.node_budget = 30
 
 
@@ -221,7 +237,7 @@ def create_mappings(data):
     data.func_map = {}
     data.gpu_node_map = {}
     data.gpu_func_map = {}
-    for i, node in enumerate(data.servers):
+    for i, node in enumerate(data.nodes):
         data.node_map[node] = i
     for i, node in enumerate(data.gpu_nodes):
         data.gpu_node_map[node] = i
@@ -295,10 +311,17 @@ def update_data_from_db(data):
 
 
 def update_old_allocations(data):
+    # print(f'data.actual_cpu_allocations.items()={data.actual_cpu_allocations.items()}')
     for function_key, x in data.actual_cpu_allocations.items():
+
+        # print(f'[][][][][[]{function_key},=====, {x}')
         for node, ok in x.items():
             if x:
                 func = function_key.split("/")[1]
+                # print(f'data.old_cpu_allocations[data.func_map[{func}]][data.node_map[{node}]]')
+                # print(f'****************  data.old_cpu_allocations={data.func_map},{data.node_map}')
+                # print(
+                #     f'****************  data.old_cpu_allocation1={data.old_cpu_allocations}')
                 data.old_cpu_allocations[data.func_map[func]][data.node_map[node]] = ok
     # print(f'BUG0 data.core_per_req_matrix={data.core_per_req_matrix}')
     # data.core_per_req_matrix = np.nan_to_num(data.cores_matrix / data.workload_on_destination_matrix, nan=0)

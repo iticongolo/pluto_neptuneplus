@@ -11,15 +11,15 @@ class Data:
         self.sources = np.array(sources) if sources else np.empty(0, dtype=np.object_)
         self.nodes = np.array(nodes) if nodes else np.empty(0, dtype=np.object_)
         self.cluster = cluster
+        self.server_names = []
         self.functions = np.array(functions) if functions else np.empty(0, dtype=np.object_)
+        # print(f'm={m}')
         self.m = np.array(m) if m is not None else np.empty((0, 0), dtype=np.float64)
         self.parallel_scheduler = np.array(parallel_scheduler) if parallel_scheduler is not None else np.empty((0, 0), dtype=np.float64)
         self.nrt = np.array(nrt) if nrt is not None else np.empty((0, 0), dtype=np.float64)
         self.function_memories = np.array(function_memories) if function_memories else np.empty(0, dtype=np.float64)
         self.node_memories = np.array(node_memories) if node_memories else np.empty(0, dtype=np.float64)
         self.function_cold_starts = np.array(function_cold_starts) if function_cold_starts else np.empty(0, dtype=np.float64)
-
-
 
 
         # Initialize other arrays with appropriate types
@@ -46,3 +46,6 @@ class Data:
 
         self.node_costs: np.array = np.empty((0, 0), dtype=np.float64)
         self.node_budget: int = 0
+        self.num_users: int = 0
+        self.node_coords = None
+        self.user_coords = None

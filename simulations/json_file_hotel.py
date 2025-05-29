@@ -1,4 +1,4 @@
-from core import nodes, network
+from core.utils.topology import nodes, network
 
 
 class JsonfileHotel:

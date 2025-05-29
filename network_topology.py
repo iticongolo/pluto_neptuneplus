@@ -1,14 +1,16 @@
 import copy
+import math
 
-from core.utils.util import *
+from cluster import Cluster
+from math import radians, sin, cos, sqrt, atan2
 
 
 class Topology:
 
-    def __init__(self, status=1, servers=None, network_delays=None, initial_clusters=None):
+    def __init__(self, server_locations=(0, 0), status=1, servers=None, network_delays=None, initial_clusters=None):
         self.status = status
         self.servers = servers if servers is not None else []  # a list
-
+        self.server_locations = server_locations
         # e.g.: [[0,3,1],[3,0,5],[1,5,0]] delays of servers n0, n1, n2
         self.network_delays = network_delays if network_delays is not None else []
 
@@ -97,11 +99,55 @@ class Topology:
     def set_network_delays(self, delays):
         self.network_delays = delays
 
-    def generate_network_delays(self):
+    def generate_network_delays(self, hop_delays=None, negligible_delays=0):
+        speed_of_light = 300000 # 300.000 km/s
+        latency_of_two_hops_between_nodes = 0.001 if hop_delays is None else 0.0  # 1s from server 1 to switch 1, from switch 1 to switch 2
+        # and from switch 2 to server 2
         self. network_delays = [[0 for _ in range(len(self.servers))] for _ in range(len(self.servers))]
-        for server1 in self.servers:
-            for server2 in self.servers:
-                if server1.id == server2.id:
-                    self.network_delays[server1.id][server2.id] = 0
-                else:
-                    self.network_delays[server1.id][server2.id] = get_distance(server1.location, server2.location)
+        if not negligible_delays:
+            for server1 in self.servers:
+                for server2 in self.servers:
+                    hop_d = 0.001 if hop_delays is None else hop_delays[server1.id][server2.id]  # use 1 for constant hop delay
+                    if server1.id == server2.id:
+                        self.network_delays[server1.id][server2.id] = 0
+                    else:
+                        # euclidian_distance = round(math.sqrt((server1.location[0] - server2.location[0]) ** 2 +
+                        #                                      (server1.location[1] - server2.location[1]) ** 2), 2)
+                        haversine_distance = get_distance(server1.location, server2.location)
+                        delay = 2.1*haversine_distance/speed_of_light + latency_of_two_hops_between_nodes+hop_d
+                        print(f'2.1*haversine_distance/speed_of_light + latency_of_two_hops_between_nodes+hop_d=2.1*{haversine_distance / speed_of_light} + {latency_of_two_hops_between_nodes}+{hop_d}={delay}')
+                        self.network_delays[server1.id][server2.id] = round(delay, 8)
+
+    def set_functions(self, functions):
+        for c in self.current_clusters:
+            c.set_functions(functions)
+        for c in self.initial_clusters:
+            c.set_functions(functions)
+
+
+def get_distance(coord1, coord2):
+    """
+    Calculate the great-circle distance between two points on the Earth's surface.
+    Args:
+        coord1 (tuple): (latitude, longitude) of the first point.
+        coord2 (tuple): (latitude, longitude) of the second point.
+    Returns:
+        float: Distance in kilometers.
+    """
+    R = 6371  # Earth's radius in kilometers
+    unit = 1  # for seconds
+
+    # Convert latitude and longitude from degrees to radians
+    lat1, lon1 = radians(coord1[0]), radians(coord1[1])
+    lat2, lon2 = radians(coord2[0]), radians(coord2[1])
+
+    # Differences in coordinates
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    # Haversine formula
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    haversine_distance = R * c*unit
+    return haversine_distance
+

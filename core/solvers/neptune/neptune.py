@@ -1,5 +1,5 @@
 import time
-
+from core.utils.util import *
 from ..solver import Solver
 from .neptune_step1 import *
 from .neptune_step2 import *
@@ -44,32 +44,27 @@ class NeptuneBase(Solver):
     def score(self):
         return {"step1 (Network delay)": self.step1.score(), "step2 (added-nodes)": self.step2_delete.score() if self.step2_delete_solved else self.step2_create.score() }
 
-    def get_functions(self, data):
-        function = []
-        for func in data.functions:
-            function.append(func.split("/")[1])
-        return function
 
     # return the network delay from node i to the function f2
     # the delay can be maximum or minimum according to the boolean is_closest
     def getNode(self, node_i, f2, cfj, is_closest=True):
         selected_delay = float('inf')
         node_j = node_i
-        delayij = self.data.node_delay_matrix
-        nodes=delayij.shape[0]
+        delayij = self.data.cluster.network_delays
+        nodes = len(delayij)
         if is_closest:
             for j in range(nodes):
-                if cfj[f2,j]>0:
-                    if selected_delay>delayij[node_i, j]:
-                        selected_delay=delayij[node_i, j]
-                        node_j=j
+                if cfj[f2,  j] > 0:
+                    if selected_delay > delayij[node_i][j]:
+                        selected_delay=delayij[node_i][j]
+                        node_j = j
         else:
-            selected_delay=0
+            selected_delay = 0
             for j in range(nodes):
-                if cfj[f2,j]>0:
-                    if selected_delay<delayij[node_i, j]:
-                        selected_delay=delayij[node_i, j]
-                        node_j=j
+                if cfj[f2, j] > 0:
+                    if selected_delay<delayij[node_i][j]:
+                        selected_delay=delayij[node_i][j]
+                        node_j = j
         return node_j
 
     def dep_results(self):
@@ -109,8 +104,8 @@ class NeptuneBase(Solver):
         return x, y, z
 
     def basic_data(self):
-        function = self.get_functions(self.data)
-        nodes = len(self.data.nodes)
+        function = get_functions(self.data)
+        nodes = len(self.data.cluster.servers)
         funcs = len(self.data.functions)
         return funcs, function, nodes
     def intenal_workload(self):
@@ -151,7 +146,7 @@ class NeptuneBase(Solver):
         funcs, function, nodes = self.basic_data()
         dag = self.data.dag
         m = self.data.m
-        network_delay = self.data.node_delay_matrix
+        network_delay = self.data.cluster.network_delays
 
         lamb = self.data.workload_matrix
         x, y, z = self.dep_results()
@@ -193,12 +188,12 @@ class NeptuneBase(Solver):
         return sum_f
 
     def object_function_global_results(self):
-        aseco = PLUTO(self.data)
+        pluto = PLUTO(self.data)
         x, y, z = self.dep_results()
         w = self.intenal_workload()
         lamb = self.data.workload_matrix
-        aseco.set_coldstart()
-        total_delay, coldstart, network_delay = aseco.object_function_heuristic(w, x, y, z, lambd=lamb,
+        pluto.set_coldstart()
+        total_delay, coldstart, network_delay = pluto.object_function_heuristic(w, x, y, z, lambd=lamb,
                                                                                 instances=self.step2_c)
         decision_time = self.computing_time*1000  # in milliseconds
         return total_delay, coldstart, network_delay, decision_time
@@ -219,6 +214,7 @@ class NeptuneBase(Solver):
 
     def get_memory_used(self, mf):
         _, instances = self.get_resources_usage()
+        # print(f'@@@@@@@@@@@@@ instances={instances}')
         memory = 0
         for f in range(len(instances)):
             memory = memory + instances[f][1]*mf[f]

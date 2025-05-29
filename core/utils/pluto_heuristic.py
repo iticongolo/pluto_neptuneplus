@@ -1,19 +1,16 @@
-import copy
+# import copy
 import time
-import json
-
-import numpy as np
-from core import *
+# import json
+#
+# import numpy as np
 from core.utils.util import *
-from dynamic_clustering import DynamicClustering
-from function import Function
-from network_topology import Topology
-from simulations.json_file_test import JsonfileTest as app
+
+# from simulations.json_file_test import JsonfileTest as app
 # from simulations.json_file_sockshop import JsonfileSockshop as app
 # from simulations.json_file_complex import JsonfileComplex as app
 # from simulations.json_file_test_complex import JsonfileTestComplex as app
 #
-# input = app.input
+# inp = app.inp
 
 node_cpu_usage = None
 node_gpu_usage = None
@@ -63,9 +60,7 @@ class PLUTO:
         dag = self.data.dag
         m = self.data.m
         network_delay = self.data.cluster.network_delays
-
         lamb = self.data.workload_on_source_matrix
-        # print(f'network_delay ={lamb}')
 
         if len(lambd) > 0:
             lamb = lambd
@@ -74,7 +69,6 @@ class PLUTO:
         cfj_temp = copy.deepcopy(self.cfj)
         if len(instances) > 0:
             cfj_temp = copy.deepcopy(instances)
-        networkd=0
         for f in range(qty_f):
             temp_network_delay = 0
             temp_total_delay = 0
@@ -83,8 +77,6 @@ class PLUTO:
                 if lamb[f, i] > 0:
                     for s1 in servers:
                         j = get_position(servers, s1.id)
-                        # print(f'servers={len(servers)}')
-                        # print(f'network_delay[{i},{j}]={network_delay}')
                         temp_network_delay = temp_network_delay + network_delay[i][j] * x[f, i, j] * lamb[f, i]
 
                 if cfj_temp[f, i]:
@@ -122,7 +114,7 @@ class PLUTO:
                         for s1 in servers:
                             j = get_position(servers, s1.id)
                             cfj_temp[fp, j] = 0
-            print(f'ABB={networkd} + {temp_network_delay}')
+            # print(f'ABB={networkd} + {temp_network_delay}')
             self.network_delay = self.network_delay + temp_network_delay
 
             self.total_delay = self.coldstart + self.network_delay
@@ -142,11 +134,12 @@ class PLUTO:
         # less_used_servers = []
         cluster = self.data.cluster
         servers = cluster.servers
-
+        # print(f'i={i}')
         max_delay_f = self.data.max_delay_matrix
         # print(f'max_delay_f={max_delay_f}')
         # node_delay = self.data.node_delay_matrix
         node_delay = self.data.cluster.network_delays
+        # print(f'node_delay={node_delay}')
         f_placed = False
         # prepare a list of nodes with available cores and memory
         # for server in servers:
@@ -155,6 +148,7 @@ class PLUTO:
         for server in servers:
             cores_available, memory_available = cluster.get_server_available_resources(server)
             # print(f'mf[{sf}]={mf}')
+            # print(f'cores_available={cores_available}, memory_available={memory_available}, mf[{f}]={mf[f]}')
             if cores_available > 0 and memory_available >= mf[f]:
                 candidate_servers.append(server)
 
@@ -168,7 +162,7 @@ class PLUTO:
 
         # if no greater differences we select the present node_i if available or anyone with min network delay
         pos = get_position(candidate_servers, servers[i].id)
-
+        # print(f'pos ={pos}, i={i}')
         if pos >= 0:  # the current server (in position i) exists in the list of candidates
             selected_server_position = i
         else:
@@ -178,7 +172,9 @@ class PLUTO:
                 if min_delay > node_delay[i][j]:
                     min_delay = node_delay[i][j]
                     selected_server_position = j
+            # print(f'@@@@@@@selected_server_position ={selected_server_position} ')
             if selected_server_position >= 0:
+                # print(f'@selected_server_position ={selected_server_position} ')
                 # select all closest nodes
                 candidates = [] # collect all the servers with the minimal network delay from the server i receiving workload
                 for s in candidate_servers:
@@ -210,6 +206,7 @@ class PLUTO:
                             if cores_available > most_resources:
                                 most_resources = cores_available
                                 selected_server_position = pos
+        # print(f'+++++++ selected_server_position ={selected_server_position} ')
         #
         # # If the list of less used nodes is not empty then we select the least used node
         # self.v=self.v+1
@@ -227,7 +224,7 @@ class PLUTO:
         workload = self.data.workload_on_source_matrix
         perc_used_cpu = np.zeros(len(cluster.servers))
         _, functions, _, mf, servers, ufj, node_cpu = self.basic_fill_data()
-        print(f'ufj={ufj}')
+        # print(f'ufj={ufj}')
         for f in range(len(functions)):
             for s in servers:
                 i = get_position(servers, s.id)
@@ -264,7 +261,8 @@ class PLUTO:
                             else:
                                 x[f, i, closest_server_position] = cpu_requested1/cpu_requested  # x[f, i, closest_node] +
                             new_cores = -cores_available+diff_cpu
-                            cluster.update_server_available_resources(servers[closest_server_position], new_cores=new_cores) # available cores=diff_cpu
+                            cluster.update_server_available_resources(servers[closest_server_position],
+                                                                      new_cores=new_cores)  # available cores=diff_cpu
                             w[f, closest_server_position] = w[f, closest_server_position] + x[f, i, closest_server_position] * lamb
                             perc_used_cpu[closest_server_position] = perc_used_cpu[closest_server_position] + cpu_requested1 / cores_capacity
                             allocation_finished = True
@@ -286,17 +284,19 @@ class PLUTO:
         return x, w,  perc_used_cpu
 
     def fill_y(self, f, y, w, perc_used_cpu):
-        dag, functions, m, mf, nodes, ufj, node_cpu = self.basic_fill_data()
+        dag, functions, m, mf, servers, ufj, node_cpu = self.basic_fill_data()
+        # print(f'SEQ[{functions[f]}]={dag.get_sequential_successors_indexes(functions[f])}')
         seq_successor = dag.get_sequential_successors_indexes(functions[f])
         cluster = self.data.cluster
-        servers= cluster.servers
         if len(seq_successor) > 0:
-            for i in range(len(nodes)):
+            for s in servers:
+                i = get_position(servers, s.id)
                 omega = w[f, i]
                 if omega > 0:
                     for fs in seq_successor:
                         omega1 = copy.deepcopy(omega)
-                        for j in range(len(nodes)):
+                        for s1 in servers:
+                            j = get_position(servers, s1.id)
                             if omega1 > 0:
                                 cpu_requested = omega1 * m[f][fs] * ufj[fs, j]  # here y[f,i,fs,j] is 1
                                 memory_requested = mf[fs]  ## here y[f,i,fs,j] is 1
@@ -307,8 +307,11 @@ class PLUTO:
                                         break
                                     closest_server_position, cores_available, memory_available, f_placed = self.get_closest_available_server(f,  mf, i)
                                     if closest_server_position < 0:
+                                        print(f'cores_available={cores_available}')
+                                        print(f'memory_available={memory_available}')
+                                        print(f'f_placed={f_placed}')
                                         raise Exception("The nodes are overloaded, no more resources to be allocated!")
-                                    print(f'node_cpu_available[{closest_server_position}]={self.node_cpu_available}')
+                                    # print(f'node_cpu_available[{closest_server_position}]={self.node_cpu_available}')
 
                                     cores_capacity, _ = cluster.get_server_allocated_resources(
                                         servers[closest_server_position])
@@ -337,7 +340,6 @@ class PLUTO:
                                         cpu_requested1 = cpu_requested * (1 - perc_cpu)
                                         w[fs, closest_server_position] = w[fs, closest_server_position] + y[f, i, fs, closest_server_position] * omega1 * m[f][fs]
                                         perc_used_cpu[closest_server_position] = perc_used_cpu[closest_server_position] + (cpu_requested1*perc_cpu)/ cores_capacity
-                                        cpu_requested1 = cpu_requested1 - cores_available
                                     if not self.cfj[fs, closest_server_position]:
                                         new_memory = -memory_available + diff_memory
                                         cluster.update_server_available_resources(servers[closest_server_position],
@@ -352,14 +354,16 @@ class PLUTO:
         cluster = self.data.cluster
 
         if len(parallel_successors_groups) > 0:
-            for i in range(len(servers)):
+            for s in servers:
+                i = get_position(servers, s.id)
                 omega = w[f, i]
                 if omega > 0:
                     for par_group in parallel_successors_groups:
                         # print(f'par_group={par_group}, parallel_successors_group={parallel_successors_groups}')
                         for fp in par_group:
                             omega1 = copy.deepcopy(omega)
-                            for j in range(len(servers)):
+                            for s1 in servers:
+                                j = get_position(servers, s1.id)
                                 if omega1 > 0:
                                     cpu_requested = omega1 * m[f][fp] * ufj[fp, j]  # here z[f,i,fp,j] is 1
                                     memory_requested = mf[fp]  ## here z[f,i,fp,j] is 1
@@ -400,9 +404,10 @@ class PLUTO:
                                             cluster.update_server_available_resources(servers[closest_server_position],
                                                                                       new_cores=-cores_available)  # remove all the available cores
                                             z[f, i, fp, closest_server_position] = perc_cpu
+                                            cpu_requested1 = cpu_requested * (1 - perc_cpu)
                                             w[fp, closest_server_position] = w[fp, closest_server_position] + z[f, i, fp, closest_server_position] * omega1 * m[f][fp]
                                             perc_used_cpu[closest_server_position] = perc_used_cpu[closest_server_position] + (cpu_requested1*perc_cpu)/cores_capacity
-                                            cpu_requested1 = cpu_requested1 - cores_available
+                                            # cpu_requested1 = cpu_requested1 - cores_available
                                         if not self.cfj[fp, closest_server_position]:
                                             new_memory = -memory_available + diff_memory
                                             cluster.update_server_available_resources(servers[closest_server_position],
@@ -411,13 +416,13 @@ class PLUTO:
                                     omega1 = 0
         return z, w, perc_used_cpu
 
-    def heuristic_placement(self, perc_node_resources_x=0.2, perc_node_resources_y=0.2, perc_node_resources_z=0.2):
+    def heuristic_placement(self):
         cluster = self.data.cluster
         start_time = time.time()
         _, functions, _, _, _, _, _ = self.basic_fill_data()
-        print('FFFFFF0000')
+        # print('FFFFFF0000')
         x, w,  perc_used_cpu = self.fill_x()
-        print('FFFFFF')
+        # print('FFFFFF')
         y = np.zeros((len(self.data.functions), len(cluster.servers), len(self.data.functions), len(cluster.servers)))
         z = np.zeros((len(self.data.functions), len(cluster.servers), len(self.data.functions), len(cluster.servers)))
         for f in range(len(functions)):
@@ -430,25 +435,20 @@ class PLUTO:
         return x, y, z, w, self.node_cpu_available, self.node_memory_available, self.cfj, decision_time
 
     def resource_usage(self):
-        total_nodes = 0
+        nodes_used = []
         memory = 0
         cpus = 0
-        memories = []
-        cores = []
         nodes = len(self.cfj[0])
         functions = len(self.cfj)
-        for i in range(nodes):
-            memories.append(self.data.node_memories[i]-self.node_memory_available[i])
-            cores.append(self.data.node_cores[i] - self.node_cpu_available[i])
-            for f in range(functions):
-                if self.cfj[f, i]:
-                    total_nodes = total_nodes+1
-                    break
-        for m in memories:
-            memory = memory+m
-        for cpu in cores:
-            cpus = cpus + cpu
-        return total_nodes, memory, cpus
+
+        for f in range(functions):
+            for node in range(nodes):
+                if self.cfj[f, node]:
+                    memory = memory + self.cfj[f, node]*self.data.function_memories[f]
+                    if node not in nodes_used:
+                        nodes_used.append(node)
+        return len(nodes_used), memory, cpus
+
 
     def basic_fill_data(self):
         functions = self.get_functions()
@@ -483,65 +483,64 @@ class PLUTO:
         self.coldstart = max_coldstart
 
 
-# class FunctionData:
-#     def __init__(self, id, data):
-#         self.id = id
-#         self.data = data
+class FunctionData:
+    def __init__(self, id, data):
+        self.id = id
+        self.data = data
 
 # Generate the network topology
-servers_location = [(3.75, 14.5), (4.5, 11.25), (8.5, 13.5), (13.75, 6.25), (14.5, 3.0), (19.5, 2.0), (21.5, 4.5),
-                    (17.5, 5.5), (15.75, 15.0), (19.75, 14.5), (22.5, 17.5), (24.75, 15.0), (22.5, 12.5)]
-servers = get_severs_list(total_servers=13, cores=2000, memory=4000, location=servers_location)
-
-topology = Topology(servers=servers)
-topology.generate_network_delays()
-
-# for node in topology.nodes:
-#     print(f'Node{node.id}-Location={node.location}')
-clusters = topology.generate_balanced_clusters(delay_threshold=5)
-
-for c in topology.current_clusters:
-    c.compute_network_delays(topology.network_delays)
-
-functions_names = ['f0','f1','f2','f3','f4']
-# functions_names = ['f0', 'f1']
-functions=[]
-for i in range(len(functions_names)):
-    functions.append(Function(i, name=functions_names[i]))
-
-for c in clusters:
-    c.functions = functions
-
-topology.initial_clusters = copy.deepcopy(clusters)
-topology.current_clusters = clusters
-
-dynamic_clustering = DynamicClustering(topology, functions)
-
-# [c0[id_f|data_frame|...],... ck[id_f|data_frame|...]]
-list_historical_workload = [[] for _ in range(len(clusters))]
-list_predicted_workload = [[] for _ in range(len(clusters))]
-
-# NOTE New ------------------------------------
-applications_list = []
-data_list = []
-servers_ids = [0, 0, 8, 8]
-function_ids = [0, 1, 0, 1]
-lambs = [400, 300, 300, 100]
-
-# servers_ids = [0, 0, 8, 8]
-# function_ids = [0, 1, 0, 1]
-# lambs = [5000, 0, 0, 0]
-
-for c in clusters:
-    data = Data()
-    applications_list.append(app)
-    input = app.input
-    data.cluster = c
-    data.nodes = [server for server in c.servers]
-    # print(f'{c.functions}')
-    setup_community_data(data, input)
-    setup_runtime_data(data, input)
-    data_list.append(data)
+# servers_location = [(3.75, 14.5), (4.5, 11.25), (8.5, 13.5), (13.75, 6.25), (14.5, 3.0), (19.5, 2.0), (21.5, 4.5),
+#                     (17.5, 5.5), (15.75, 15.0), (19.75, 14.5), (22.5, 17.5), (24.75, 15.0), (22.5, 12.5)]
+# servers = get_severs_list(total_servers=13, cores=2000, memory=4000, location=servers_location)
+#
+# topology = Topology(servers=servers)
+# topology.generate_network_delays()
+#
+# # for node in topology.nodes:
+# #     print(f'Node{node.id}-Location={node.location}')
+# clusters = topology.generate_balanced_clusters(delay_threshold=5)
+#
+# for c in topology.current_clusters:
+#     c.compute_network_delays(topology.network_delays)
+#
+# functions_names = ['f0','f1','f2','f3','f4', 'f5', 'f6']
+# # functions_names = ['f0', 'f1']
+# functions=[]
+# for i in range(len(functions_names)):
+#     functions.append(Function(i, name=functions_names[i]))
+#
+# for c in clusters:
+#     c.functions = functions
+#
+# topology.initial_clusters = copy.deepcopy(clusters)
+# topology.current_clusters = clusters
+#
+# dynamic_clustering = DynamicClustering(topology, functions)
+#
+# # [c0[id_f|data_frame|...],... ck[id_f|data_frame|...]]
+# list_historical_workload = [[] for _ in range(len(clusters))]
+# list_predicted_workload = [[] for _ in range(len(clusters))]
+#
+# # NOTE New ------------------------------------
+# applications_list = []
+# data_list = []
+# servers_ids = [0, 0, 8, 0]
+# function_ids = [0, 1, 0, 5]
+# lambs = [400, 300, 300, 100]
+#
+# # servers_ids = [0, 0, 8, 8]
+# # function_ids = [0, 1, 0, 1]
+# # lambs = [5000, 0, 0, 0]
+#
+# for c in clusters:
+#     data = Data()
+#     inp = app.inp
+#     data.cluster = c
+#     data.nodes = [server for server in c.servers]
+#     # print(f'{c.functions}')
+#     setup_community_data(data, inp)
+#     setup_runtime_data(data, inp)
+#     data_list.append(data)
 
 
 
@@ -550,60 +549,61 @@ for c in clusters:
 # workloads[c_id][pos_server][function_ids[i]]
 # e.g.: workloads= [[c0|[s3|[f0|0, f1|0, ... f5|0], s0[f0|400, f1|100, ... f5|0]], ..., s8[f0|200, f1|50, ... f5|0]]]
 
-workloads = set_workload(dynamic_clustering, topology, data_list, servers_ids, function_ids,
-                                         lambs, applications_list)
-
-
-# delays = np.zeros((7,2))
-# qty_values = 1
-# topology_position = 0   # select the topology
-# # app.set_topology(app, topology_position)
-# input = app.input
-# param.set_topology(param, topology_position, input)
-# f = len(input["function_names"])
-# nod = len(input["node_names"])
-# workload = param.workload_init(param, f, nod)
-
-# Vary the workload from 50 to 300
-# for i in range(7):
-#     if i == 0:
-#         lamb = 10
-# else:
-#     lamb = 50 * i
-# lamb = 200
-# workload[0][0] = lamb
-# print(f'workload={workload}')
+# workloads = set_workload(dynamic_clustering, data_list, servers_ids, function_ids,
+#                                          lambs, app)
 #
-# json_workload = json.dumps(workload)
-# input["workload_on_source_matrix"] = json_workload
-# print(f'workload1={json_workload}')
-# data = Data()
-# setup_community_data(data, input)
-# setup_runtime_data(data, input)
-# print(f'Nodes={data.nodes}')
-
-update_data(json, data_list, workloads, applications_list)
-perc_workload_balance = 1.0
-
-i = 0
-delays=[]
-
-for c in clusters:
-    asc = PLUTO(data_list[i])
-    asc.compute_resources_contention(c.total_workload_per_f, c.cores_needed_per_f)
-    # for server in c.servers:
-    #     cores_available, memory_available = c.get_server_available_resources(server)
-    #     print(f'ServerAAA[{server.id}]={cores_available, memory_available}')
-
-    x, y, z, w, node_cpu_available, node_memory_available, instance_fj, decision_time = \
-        asc.heuristic_placement(perc_workload_balance, perc_workload_balance, perc_workload_balance)
-    total_delay, cold_start, network_delay = asc.object_function_heuristic(w, x, y, z)
-    delays.append(f'C[{c.id}], {total_delay}')
-    # print(f'C[{c.id}], {cold_start}')
-    i = i+1
-np.set_printoptions(threshold=np.inf)
-
-print(f'DELAYS={delays}')
+#
+# # delays = np.zeros((7,2))
+# # qty_values = 1
+# # topology_position = 0   # select the topology
+# # # app.set_topology(app, topology_position)
+# # inp = app.inp
+# # param.set_topology(param, topology_position, inp)
+# # f = len(inp["function_names"])
+# # nod = len(inp["node_names"])
+# # workload = param.workload_init(param, f, nod)
+#
+# # Vary the workload from 50 to 300
+# # for i in range(7):
+# #     if i == 0:
+# #         lamb = 10
+# # else:
+# #     lamb = 50 * i
+# # lamb = 200
+# # workload[0][0] = lamb
+# # print(f'workload={workload}')
+# #
+# # json_workload = json.dumps(workload)
+# # inp["workload_on_source_matrix"] = json_workload
+# # print(f'workload1={json_workload}')
+# # data = Data()
+# # setup_community_data(data, inp)
+# # setup_runtime_data(data, inp)
+# # print(f'Nodes={data.nodes}')
+#
+# update_data(json, data_list, workloads, app)
+# perc_workload_balance = 1.0
+#
+# i = 0
+# delays=[]
+#
+# for c in clusters:
+#     asc = PLUTO(data_list[i])
+#     asc.compute_resources_contention(c.total_workload_per_f, c.cores_needed_per_f)
+#     # for server in c.servers:
+#     #     cores_available, memory_available = c.get_server_available_resources(server)
+#     #     print(f'ServerAAA[{server.id}]={cores_available, memory_available}')
+#
+#     x, y, z, w, node_cpu_available, node_memory_available, instance_fj, decision_time = \
+#         asc.heuristic_placement()
+#     total_delay, cold_start, network_delay = asc.object_function_heuristic(w, x, y, z)
+#     total_nodes, memory, cores = asc.resource_usage()
+#     delays.append(f'[C[{c.id}], TD{total_delay}, {cold_start}, {network_delay}, {total_nodes}, {memory}, {cores}]')
+#     # print(f'C[{c.id}], {cold_start}')
+#     i = i+1
+# np.set_printoptions(threshold=np.inf)
+#
+# print(f'DELAYS(C-id, Total-delay, Coldstart-delay, Network-delay, nodes,memory,cores)={delays}')
 # print(f'x={x}')
 # print('++++++++++++++++++++++++++++++++++++++++++++++++')
 #

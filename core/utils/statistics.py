@@ -64,6 +64,7 @@ class Statistics:
         # Save the table as a PDF in the specified directory
         plot_file_path = os.path.join(plot_directory, filename)
         plt.savefig(plot_file_path, bbox_inches='tight', pad_inches=0.05)
+
 def validate_matrixes(list_matrixes):
     new_matrixes=[]
     for i in range(len(list_matrixes)):

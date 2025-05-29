@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from core.utils.util import *
+# from core.utils.util import *
 
 
 class Cluster:
@@ -39,6 +39,7 @@ class Cluster:
         self.additional_cores_needed = 0
         self.functions = functions if functions is not None else []
         self.network_delays = []
+        self.cpu_allocation = {}  # to be used by neptune
 
     def set_centroid(self, centroid):
         self.centroid = centroid
@@ -132,6 +133,7 @@ class Cluster:
         if server_not_exists:
             self.servers.append(new_server)
         if cluster_generation:
+            # print(f'+########## new_cores={new_cores}, new_memory={new_memory}')
             self.update_resources(new_cores=new_cores, new_memory=new_memory)
         else:
             self.update_resources_capacity(new_cores=new_cores, new_memory=new_memory)
@@ -288,4 +290,7 @@ class Cluster:
             server.cores_available = server.cores_available + new_cores
             server.memory_available = server.memory_available + new_memory
         self.update_resources(new_cores=new_cores, new_memory=new_memory)
+
+    def reset(self):
+        self.initialize_cluster()
 

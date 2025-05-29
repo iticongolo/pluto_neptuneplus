@@ -3,9 +3,9 @@ import copy
 import numpy as np
 
 from cluster import Cluster
-from core.utils.forecast import Forecast
+# from core.utils.forecast import Forecast
 from core.utils.util import *
-from server import Server
+# from server import Server
 
 
 class DynamicClustering:
@@ -49,15 +49,16 @@ class DynamicClustering:
         clusters = copy.deepcopy(self.topology.initial_clusters) # request sent to a shared server must be managed on initial cluster of the server
         # print(f'INITIAL-CLUSTERS={[[server.id for server in c.servers] for c in clusters]}')
         self.total_predicted_topology_workload = copy.deepcopy(self.external_predicted_topology_workload)
+
         for c in clusters:
             total_workload = [0] * len(self.functions)
-            # print(f'workload_{c.id}_{0}={self.total_predicted_topology_workload[c.id][0]}')
+
             for f in c.functions:
-                # print(f'FUNCTIONS={[(f.id, f.name) for f in c.functions]}')
+
                 total_workload[f.id] = self.total_predicted_topology_workload[c.id][f.id]
                 function_name = f.name  # function names are unique, e.g.: f0, f1- where 0 and 1 are the ids
+
                 successors_f = data_list[c.id].dag.get_successors_ids(function_name)  # returns e.g.: [1,4,6,7] ids of successors
-                # print(f'successors_{f.id}={successors_f}')
                 for f_id in successors_f:
                     workload_c_f = self.total_predicted_topology_workload[c.id][f_id] + data_list[c.id].m[f.id][f_id] * \
                                    total_workload[f.id]
@@ -124,7 +125,7 @@ class DynamicClustering:
             # cores_not_needed = clusters[i].capacity_cores - self.historical_total_requested_cores_topology[clusters[i].id]
             # cores_not_needed = clusters[i].capacity_cores - cores_needed[i]
             clusters[i].update_status(cores_needed[clusters[i].id])
-            print(f'HIST={self.historical_total_requested_cores_topology[clusters[i].id]}, CORES-NEEDED={cores_needed[clusters[i].id]}')
+            # print(f'HIST={self.historical_total_requested_cores_topology[clusters[i].id]}, CORES-NEEDED={cores_needed[clusters[i].id]}')
 
     def get_underloaded_overloaded_clusters(self, requested_cores):
         overloaded_clusters = []
@@ -217,22 +218,22 @@ class DynamicClustering:
     # with fewer capacity which would imply higher transmission cost and network delay NOTE:DONE
     def change_clusters(self, data_list):
         requested_cores = self.cluster_cores_requested(data_list)
-        print(f'CORES_REQUESTED={requested_cores}')
+        # print(f'CORES_REQUESTED={requested_cores}')
         self.update_topology_status_prediction(data_list)
         self.__release_shared_servers(requested_cores)
-        print(f'status-before={[c.status for c in self.topology.current_clusters]}')
+        # print(f'status-before={[c.status for c in self.topology.current_clusters]}')
         overloaded_clusters, underloaded_clusters = self.get_underloaded_overloaded_clusters(requested_cores)
         if len(overloaded_clusters) == 0 or len(underloaded_clusters) == 0:
             self.historical_total_requested_cores_topology = requested_cores
             return
-        print(f'++++++++++ AVAILABLE CORES = {[(c.id, c.cores_available) for c in underloaded_clusters]}')
+        # print(f'++++++++++ AVAILABLE CORES = {[(c.id, c.cores_available) for c in underloaded_clusters]}')
         self.update_clusters_predicted_cores_available(data_list, underloaded_clusters)
         # get a list of (cluster, cores_missing_on_cluster) for each cluster predicted to be overloaded
         list_needed_cores = self.__list_needed_cores_topology(requested_cores)
 
         # sort the list by number of cores needed for each cluster in descendent
         sorted_list_needed_cores = sorted(list_needed_cores, key=lambda x: x[1], reverse=True)
-        print(f'Needed_cores={[(core[0].id, core[1]) for core in sorted_list_needed_cores]}')
+        # print(f'Needed_cores={[(core[0].id, core[1]) for core in sorted_list_needed_cores]}')
         underloaded_servers = get_underloaded_servers(underloaded_clusters)
 
         while len(sorted_list_needed_cores) > 0 and len(underloaded_clusters) > 0:

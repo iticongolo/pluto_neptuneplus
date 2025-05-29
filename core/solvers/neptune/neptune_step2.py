@@ -3,7 +3,7 @@ from .neptune_step1 import *
 
 
 class NeptuneStep2Base(NeptuneStepBase):
-    def __init__(self, mode=str, alpha=0.5, **kwargs):
+    def __init__(self, mode=str, alpha=0.0, **kwargs):
         super().__init__(**kwargs)
         self.mode = mode
         assert mode in ["delete", "create"]
@@ -19,10 +19,10 @@ class NeptuneStep2Base(NeptuneStepBase):
 
     def init_constraints(self):
 
-        self.log(self.data.old_allocations_matrix)
-        self.log(self.data.core_per_req_matrix)
-        self.log(self.data.workload_matrix)
-        self.log(self.data.node_cores_matrix)
+        # self.log(self.data.old_allocations_matrix)
+        # self.log(self.data.core_per_req_matrix)
+        # self.log(self.data.workload_matrix)
+        # self.log(self.data.node_cores_matrix)
 
         super().init_constraints()
         constrain_handle_all_requests(self.data, self.solver, self.x)

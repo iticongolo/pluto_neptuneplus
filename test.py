@@ -3,8 +3,10 @@ import pprint
 
 # from simulations.json_file_hotel import JsonfileHotel as app
 # from simulations.json_file_sockshop import JsonfileSockshop as app
-from simulations.json_file_complex import JsonfileComplex as app
+# from simulations.json_file_complex import JsonfileComplex as app
 # from simulations.json_file_test import JsonfileTest as app
+from simulations.applications import Applications as app
+# from simulations.one_application import Applications as app
 
 input = app.input
 def get_input():

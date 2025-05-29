@@ -35,3 +35,12 @@ RUN chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["/bin/bash", "./entrypoint.sh"]
 
+## Install Gunicorn for serving the Flask app
+#RUN pip install gunicorn
+#
+## Define entrypoint using Gunicorn instead of Flask's development server
+#ENTRYPOINT ["gunicorn", "-w", "4", "-b", "0.0.0.0:5001", "main:app"]
+#
+## Expose port 5000 for the Flask app to be accessed externally
+#EXPOSE 5001
+

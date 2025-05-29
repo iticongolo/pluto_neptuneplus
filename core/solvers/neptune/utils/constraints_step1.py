@@ -55,12 +55,11 @@ def constrain_handle_required_requests(data, solver, x):
 
 # Do not overload nodes' CPUs
 def constrain_CPU_usage(data, solver, x):
-    # print(f'data.CORES={data.core_per_req_matrix}')
-    # for f in range(len(data.functions)):
-    #     for i in range(len(data.nodes)):
-            #print(f'data.CORES[{f}, {i}]={data.core_per_req_matrix[f, i]}')
-    # print(f'ata.nodes={data.nodes}')
-    # print(f'ata.source={data.sources}')
+    # print(f'data.workload_matrix={data.workload_matrix}')
+    # print(f'data.core_per_req_matrix={data.core_per_req_matrix}')
+    # print(f'len(data.functions)={len(data.functions)}')
+    # print(f'len(data.sources)={len(data.sources)}')
+
     for j in range(len(data.nodes)):
         solver.Add(
             solver.Sum([

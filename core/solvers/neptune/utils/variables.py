@@ -2,6 +2,8 @@ import numpy as np
 
 #TODO: check var name 
 def init_x(data, solver, x):
+    # print(f'PPPPPPPP data.clusters={data.cluster}')
+    # print(f'PPPPPPPP data.functions={data.functions}')
     for f in range(len(data.functions)):
         for i in range(len(data.sources)):
             for j in range(len(data.nodes)):

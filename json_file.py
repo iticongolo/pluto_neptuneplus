@@ -129,7 +129,7 @@ class Jsonfile:
         "m": [[0, 1, 1], [0, 0, 0]]
     }
     #
-    # input = {
+    # inp = {
     #     "with_db": False,
     #     "solver": {
     #         "type": "NeptuneMinDelay",

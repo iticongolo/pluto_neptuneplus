@@ -1,11 +1,14 @@
-import datetime
 
+import time
+from core.utils.util import *
 import numpy as np
 from ortools.linear_solver import pywraplp
 from ..solver import Solver
 from ortools.sat.python import cp_model
 from .utils import *
 from ..neptune.utils.output import convert_c_matrix, convert_x_matrix
+from ...utils.pluto_heuristic import PLUTO
+
 
 class VSVBP(Solver):
 
@@ -16,6 +19,7 @@ class VSVBP(Solver):
         self.solver = cp_model.CpSolver()
         self.x, self.c, self.y = {}, {}, {}
         self.first_step = True
+        self.computing_time = 0
 
     def load_data(self, data):
         self.prepare_data(data)
@@ -57,6 +61,7 @@ class VSVBP(Solver):
 
 
     def solve(self):
+        start_time = time.time()
         self.init_objective()
         self.solver.Solve(self.model)
         self.first_step = False
@@ -64,13 +69,67 @@ class VSVBP(Solver):
         self.init_constraints()
         self.init_objective()
         self.status = self.solver.Solve(self.model)
+        end_time = time.time()
+        self.computing_time = self.computing_time + end_time - start_time
 
-        self.log(f"Problem solved with status {self.status}")
+        # self.log(f"Problem solved with status {self.status}")
 
     def results(self):
         xjr = output_xjr(self.data, self.solver, self.status, self.x, self.c, self.y)
         x, c = output_x_and_c(self.data, self.solver, self.c, xjr)
         return convert_x_matrix(x, self.data.nodes, self.data.functions, self.data.nodes), convert_c_matrix(c, self.data.functions, self.data.nodes)
-    
 
+    def dep_results(self):
+        start_time = time.time()
+        x, y, z = get_dep_results(self.data,  self.x, self.c)
+        end_time = time.time()
+        self.computing_time = self.computing_time+end_time-start_time
+        return x, y, z
+
+    def basic_data(self):
+        function = get_functions(self.data)
+        nodes = len(self.data.cluster.servers)
+        funcs = len(self.data.functions)
+        return funcs, function, nodes
+
+    def internal_workload(self):
+        w = get_internal_workload(self.data, self.x, self.c)
+        return w
+
+    def dep_network_delay(self):
+        net_delay = get_net_delay(self.data, self.x, self.c)
+        return net_delay
+
+    def object_function_global_results(self):
+        pluto = PLUTO(self.data)
+        x, y, z = self.dep_results()
+        w = self.internal_workload()
+        lamb = self.data.workload_matrix
+        pluto.set_coldstart()
+        total_delay, coldstart, network_delay = pluto.object_function_heuristic(w, x, y, z, lambd=lamb,
+                                                                                instances=self.c)
+        decision_time = self.computing_time*1000  # in milliseconds
+        return total_delay, coldstart, network_delay, decision_time
+
+    def get_resources_usage(self):
+        nodes = []
+        instancef = []
+        for f in range(len(self.c)):
+            instances = 0
+            for j in range(len(self.c[0])):
+                if self.c[f, j]:
+                    instances = instances+self.c[f, j]
+                    if j not in nodes:
+                        nodes.append(j)
+            instancef.append([f, instances])
+
+        return len(nodes), instancef
+
+    def get_memory_used(self, mf):
+        _, instances = self.get_resources_usage()
+        # print(f'@@@@@@@@@@@@@ instances={instances}')
+        memory = 0
+        for f in range(len(instances)):
+            memory = memory + instances[f][1]*mf[f]
+        return memory
 

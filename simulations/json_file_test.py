@@ -1,10 +1,10 @@
 class JsonfileTest:
 
-    qty_f = 5
+    qty_f = 9
     cpu_allocation = {}
     position = 0
 
-    functions = ["ns/f0", "ns/f1", "ns/f2", "ns/f3", "ns/f4"]
+    functions = ["ns/f0", "ns/f1", "ns/f2", "ns/f3", "ns/f4", "ns/f5", "ns/f6", "ns/f7", "ns/f8"]
 
     input = {
         "with_db": False,
@@ -23,7 +23,7 @@ class JsonfileTest:
         "node_memories": [],
 
         "execution_time": [
-            50, 50, 50, 50, 50
+            50, 50, 50, 50, 50, 50, 50, 50, 0
         ],
         "node_cores": [],
 
@@ -33,13 +33,13 @@ class JsonfileTest:
         ],
         "function_names": functions,
         "function_memories": [
-            200, 200, 200, 200, 200
+            200, 200, 200, 200, 200, 200, 200, 200,0
         ],
         "function_cold_starts": [
-            500, 500, 500, 500, 500
+            500, 500, 500, 500, 500, 500, 500, 500,0
         ],
         "function_max_delays": [
-            5, 5, 5, 5, 5
+            100, 100, 100, 100, 100, 100, 100, 100, 100
         ],
         "gpu_function_names": [
         ],
@@ -54,13 +54,21 @@ class JsonfileTest:
             {"name": "f1", "users": 2, "nrt": 10},
             {"name": "f2", "users": 2, "nrt": 10},
             {"name": "f3", "users": 2, "nrt": 10},
-            {"name": "f4", "users": 2, "nrt": 10}
+            {"name": "f4", "users": 2, "nrt": 10},
+            {"name": "f5", "users": 2, "nrt": 10},
+            {"name": "f6", "users": 2, "nrt": 10},
+            {"name": "f7", "users": 2, "nrt": 10},
+            {"name": "f8", "users": 2, "nrt": 10}
         ],
         "edges": [
             {"source": "f0", "target": "f1", "sync": 1, "times": 1},
             {"source": "f0", "target": "f2", "sync": 2, "times": 2},
             {"source": "f1", "target": "f3", "sync": 3, "times": 1},
-            {"source": "f1", "target": "f4", "sync": 4, "times": 1}
+            {"source": "f1", "target": "f4", "sync": 3, "times": 1},
+            {"source": "f5", "target": "f6", "sync": 4, "times": 1},
+            {"source": "f7", "target": "f8", "sync": 5, "times": 0}
         ],
-        "m": [[0, 1, 2, 0, 0], [0, 0, 0, 1, 1], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]],
+        "m": [[0, 1, 2, 0, 0, 0, 0, 0, 0], [0, 0, 0, 1, 1, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0]],
+        "parallel_scheduler": [[0], [1], [2], [3, 4], [5], [6], [7], [8]]
     }
